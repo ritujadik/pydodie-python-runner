@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Python Code Runner (Beginner Friendly)</title>
+  <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      max-width: 700px;
+      margin: auto;
+      background: #f9f9f9;
+    }
+    textarea, button {
+      padding: 10px;
+      font-size: 1rem;
+      width: 100%;
+      margin-top: 10px;
+      box-sizing: border-box;
+      font-family: monospace;
+    }
+    #output {
+      margin-top: 20px;
+      background: #eef;
+      padding: 15px;
+      border-radius: 5px;
+      font-family: monospace;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🐍 Beginner-Friendly Python Code Runner</h1>
+  <p>Type your Python code below. Use <code>print()</code>, math, loops, etc. No need to install anything — <code>numpy</code> is preloaded!</p>
+
+  <textarea id="code" rows="10" placeholder="Example:
+import numpy as np
+print(np.array([1, 2, 3]) * 2)"></textarea>
+
+  <button onclick="runPython()">▶ Run Python Code</button>
+
+  <div id="output">Loading Pyodide...</div>
+
+  <script type="module">
+    import { loadPyodide } from "https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.mjs";
+
+    let pyodide;
+
+    async function initPyodide() {
+      pyodide = await loadPyodide();
+      await pyodide.loadPackage("numpy"); // Preload numpy
+      document.getElementById("output").textContent = "✅ Pyodide is ready. You can run Python code now!";
+    }
+
+    window.runPython = async function () {
+  let userCode = document.getElementById("code").value;
+
+  // 1. Replace tabs with 4 spaces
+  userCode = userCode.replace(/\t/g, "    ");
+
+  // 2. Clean trailing spaces from each line
+  userCode = userCode
+    .split("\n")
+    .map(line => line.replace(/\s+$/g, "")) // remove trailing spaces
+    .join("\n");
+
+  // 3. (Optional) You can add more cleanup here if needed
+
+  const wrappedCode = `
+import sys
+import io
+import math
+import numpy as np  # Pre-imported numpy
+
+sys.stdout = io.StringIO()
+
+# User's code:
+${userCode}
+
+# Show captured print output
+sys.stdout.getvalue()
+  `;
+
+  try {
+    const result = await pyodide.runPythonAsync(wrappedCode);
+    document.getElementById("output").textContent = result || "✅ Code executed (no output).";
+  } catch (err) {
+    document.getElementById("output").textContent = "❌ Error:\n" + err;
+  }
+};
+
+
+    document.getElementById("code").addEventListener("keydown", function (e) {
+      const textarea = this;
+      const start = textarea.selectionStart;
+      const valueBeforeCursor = textarea.value.substring(0, start);
+      const lastLineMatch = valueBeforeCursor.match(/(?:^|\n)([^\n]*)$/);
+
+      if (e.key === "Tab") {
+        e.preventDefault();
+        textarea.value = textarea.value.substring(0, start) + "    " + textarea.value.substring(textarea.selectionEnd);
+        textarea.selectionStart = textarea.selectionEnd = start + 4;
+      }
+
+      else if (e.key === "Enter") {
+        e.preventDefault();
+
+        let indent = "";
+        if (lastLineMatch) {
+          const lastLine = lastLineMatch[1];
+          const indentMatch = lastLine.match(/^\s*/);
+          indent = indentMatch ? indentMatch[0] : "";
+          if (lastLine.trimEnd().endsWith(":")) {
+            indent += "    "; // Increase indent after colon
+          }
+        }
+
+        const insertText = "\n" + indent;
+        textarea.value = textarea.value.substring(0, start) + insertText + textarea.value.substring(textarea.selectionEnd);
+        textarea.selectionStart = textarea.selectionEnd = start + insertText.length;
+      }
+    });
+
+    initPyodide();
+  </script>
+
+</body>
+</html>
